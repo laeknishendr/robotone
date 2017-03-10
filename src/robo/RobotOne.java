@@ -8,24 +8,25 @@ import java.util.Hashtable;
 import java.util.List;
 
 import robocode.AdvancedRobot;
-import robocode.Robot;
-import robocode.ScannedRobotEvent;
+import robocode.util.Utils;
+import robocode.*;
 
 public class RobotOne extends AdvancedRobot {
 
 	Enemy target; 
 	Hashtable<String, Enemy> targets;
 	int direction = 1;	
-	double midpointstrength=0;
 	int midpointcount=0; 
-	double firePower; 
-	List<Point2D.Double> movementLog = new ArrayList<Point2D.Double>(); 
-	int shortMovementCounter = 0; 
-	boolean timeToMove = false; 
-	int movementDirection=1; 
+	int shortMovementCounter = 0;
+	int movementDirection=1;
 	int gunDirection=1;
-	double previousEnergy=100; 
-
+	double midpointstrength=0;
+	double firePower; 
+	double previousEnergy=100;
+	boolean timeToMove = false; 
+	List<Point2D.Double> movementLog = new ArrayList<Point2D.Double>(); 
+	double Mov = -1;
+	 
 	public void run() {
 		setBodyColor(Color.RED);
 		targets = new Hashtable<String, Enemy>();
@@ -36,15 +37,14 @@ public class RobotOne extends AdvancedRobot {
 		setAdjustRadarForGunTurn(true);
 		turnRadarRightRadians(2*Math.PI);	
 		while(true){ 
-			antiGravMove();					//Move the bot
-			doFirePower();					//select the fire power to use
-			doScanner();					//Oscillate the scanner over the bot
-			doGun();
+			antiGravMove();					
+			doFirePower();
+			doScanner();
 			setFire(firePower);
 			execute();
 		}
 			
-		}
+	}
 	
 	void checkForMove(List<Point2D.Double> moveLog){
 		double distance = 1000;
@@ -52,25 +52,24 @@ public class RobotOne extends AdvancedRobot {
 			distance = Point2D.distance(moveLog.get(moveLog.size()-1).getX(), moveLog.get(moveLog.size()-1).getY(), moveLog.get(moveLog.size()-2).getX(), moveLog.get(moveLog.size()-2).getY());
 			System.out.println("Distance: "+distance);
 		}
-		if(distance <5){
+	
+		if(distance <10){
 			shortMovementCounter++;
 		}
-		
-		if(shortMovementCounter>0){
+	
+		if(shortMovementCounter>3){
 			shortMovementCounter = 0; 
 			timeToMove = true; 
 		}
 	}
 	
 	void doFirePower() {
-	
-		
 		if(target.distance<150){
 			firePower=16;
 		}else if(target.distance>500){
 			firePower=3;
 		}else{
-			firePower = 8;
+			firePower = 5;
 		}
 	
 	}
@@ -84,8 +83,7 @@ public class RobotOne extends AdvancedRobot {
 		Enemy en;
     	Enumeration e = targets.elements();
 	    
-    	//cycle through all the enemies.  If they are alive, they are repulsive.  Calculate the force on us
-		while (e.hasMoreElements()) {
+    	while (e.hasMoreElements()) {
     	    en = (Enemy)e.nextElement();
 			if (en.live) {
 				p = new GravPoint(en.x,en.y, -1000);
@@ -95,32 +93,32 @@ public class RobotOne extends AdvancedRobot {
 		        yforce += Math.cos(ang) * force;
 			}
 	    }
-		midpointcount++;
+		
+    	midpointcount++;
 		if (midpointcount > 2) {
 			midpointcount = 0;
 			midpointstrength = (Math.random() * 2000) - 1000;
 		}
+	
 		p = new GravPoint(getBattleFieldWidth()/2, getBattleFieldHeight()/2, midpointstrength);
 		force = p.power/Math.pow(getRange(getX(),getY(),p.x,p.y),1.5);
 	    ang = normaliseBearing(Math.PI/2 - Math.atan2(getY() - p.y, getX() - p.x)); 
-	    xforce += Math.sin(ang+ Math.PI/2) * force;
+	    xforce += Math.sin(ang+Math.PI/2) * force;
 	    yforce += Math.cos(ang+Math.PI/2) * force;
-	    xforce += 4200/Math.pow(getRange(getX(), getY(), getBattleFieldWidth(), getY()), 3);
-	    xforce -= 4200/Math.pow(getRange(getX(), getY(), 0, getY()), 3);
-	    yforce += 4200/Math.pow(getRange(getX(), getY(), getX(), getBattleFieldHeight()), 3);
-	    yforce -= 4200/Math.pow(getRange(getX(), getY(), getX(), 0), 3);
-	    
+	    xforce += 5000/Math.pow(getRange(getX(), getY(), getBattleFieldWidth(), getY()), 3);
+	    xforce -= 5000/Math.pow(getRange(getX(), getY(), 0, getY()), 3);
+	    yforce += 5000/Math.pow(getRange(getX(), getY(), getX(), getBattleFieldHeight()), 3);
+	    yforce -= 5000/Math.pow(getRange(getX(), getY(), getX(), 0), 3);
 	    
 		movementLog.add(new Point2D.Double(getX()-xforce,getY()-yforce));
-		System.out.println("im here");
 		checkForMove(movementLog);
 	    if(timeToMove==true){
-	    	System.out.println("im here222");
-	    	goTo(getX()-xforce,getY()-yforce+700);
+	    	goTo((getX()-xforce)*1.5,(getY()-yforce)*1.5);
 	    	timeToMove=false;
+	    }else{
+	    	goTo(getX()-xforce,getY()-yforce);
 	    }
-	    
-	    goTo(getX()-xforce,getY()-yforce);
+		
 	}
 	
 	void goTo(double x, double y) {
@@ -152,22 +150,7 @@ public class RobotOne extends AdvancedRobot {
 	void doScanner() {
 		setTurnRadarLeftRadians(2*Math.PI);
 	}
-	
-	void doGun() {
-		long time;
-	    long nextTime;
-	    Point2D.Double p;
-	    p = new Point2D.Double(target.x, target.y);
-	    for (int i = 0; i < 10; i++){
-	        nextTime = ((int)Math.round((getRange(getX(),getY(),p.x,p.y)/(20-(3*firePower)))));
-	        time = getTime() + nextTime;
-	        p = target.guessPosition(time);
-	    }
-	    /**Turn the gun to the correct angle**/
-	    double gunOffset = getGunHeadingRadians() - 
-	                  (Math.PI/2 - Math.atan2(p.y - getY(), p.x - getX()));
-	    setTurnGunLeftRadians(normaliseBearing(gunOffset));
-	}
+
 	
 	double normaliseBearing(double ang) {
 	    if (ang > Math.PI)
@@ -185,9 +168,7 @@ public class RobotOne extends AdvancedRobot {
 		return ang;
 	}
 	
-
-	
-	double getRange(double x1,double y1, double x2,double y2) {
+	double getRange(double x1,double y1, double x2,double y2){
 	    double x = x2-x1;
 	    double y = y2-y1;
 	    double range = Math.sqrt(x*x + y*y);
@@ -195,8 +176,7 @@ public class RobotOne extends AdvancedRobot {
 	}
 	
 
-	public double absbearing( double x1,double y1, double x2,double y2 )
-	{
+	public double absbearing( double x1,double y1, double x2,double y2 ){
 		double xo = x2-x1;
 		double yo = y2-y1;
 		double h = getRange( x1,y1, x2,y2 );
@@ -220,6 +200,7 @@ public class RobotOne extends AdvancedRobot {
 	}
 
 	public void onScannedRobot(ScannedRobotEvent e) {
+			
 		Enemy en;
 		if (targets.containsKey(e.getName())) {
 			en = (Enemy)targets.get(e.getName());
@@ -227,18 +208,17 @@ public class RobotOne extends AdvancedRobot {
 			en = new Enemy();
 			targets.put(e.getName(),en);
 		}
-		//the next line gets the absolute bearing to the point where the bot is
 		double absbearing_rad = (getHeadingRadians()+e.getBearingRadians())%(2*Math.PI);
-		//this section sets all the information about our target
+		double offset =  Math.random()*0.1;
 		en.name = e.getName();
 		double h = normaliseBearing(e.getHeadingRadians() - en.heading);
 		h = h/(getTime() - en.ctime);
 		en.changehead = h;
-		en.x = getX()+Math.sin(absbearing_rad)*e.getDistance(); //works out the x coordinate of where the target is
-		en.y = getY()+Math.cos(absbearing_rad)*e.getDistance(); //works out the y coordinate of where the target is
+		en.x = getX()+Math.sin(absbearing_rad)*e.getDistance(); 
+		en.y = getY()+Math.cos(absbearing_rad)*e.getDistance(); 
 		en.bearing = e.getBearingRadians();
 		en.heading = e.getHeadingRadians();
-		en.ctime = getTime();				//game time at which this scan was produced
+		en.ctime = getTime();	
 		en.speed = e.getVelocity();
 		en.distance = e.getDistance();	
 		en.live = true;
@@ -246,10 +226,15 @@ public class RobotOne extends AdvancedRobot {
 			target = en;
 		}
 		target.speedLog.add((Double)e.getVelocity()); 
+		setTurnRadarLeftRadians(getRadarTurnRemainingRadians());
+		if(en.distance < 150 && Math.abs(en.speed) > 4){
+			offset = offset/2;
+		}else{
+			offset = offset/4;
+		}		
+		setTurnGunRightRadians(Utils.normalRelativeAngle(getHeadingRadians() + e.getBearingRadians() - getGunHeadingRadians()+offset));
 	}
-	
 
-		
 }
 
 	class Enemy {
@@ -257,10 +242,8 @@ public class RobotOne extends AdvancedRobot {
 		public double bearing,heading,speed,x,y,distance,changehead;
 		public long ctime; 		
 		public boolean live; 	
-		public double[] knownXs; 
-		public double[] knownYs; 
 		public double meanSpeed; 
-		//public boolean isStuck; 
+
 		public List<Point2D.Double> knownPositions; 
 		public List<Double> speedLog = new ArrayList<Double>(); 
 		
@@ -274,14 +257,8 @@ public class RobotOne extends AdvancedRobot {
 			double newX = x + Math.sin(heading) * mean * diff;
 			return new Point2D.Double(newX, newY);
 			}
-			}
-		
-		/*public void stuckrobot(){
-			if(knownPositions.get(knownPositions.size()-1).equals(knownPositions.get(knownPositions.size()-2))){
-				this.isStuck=true; 
-			}
-			else{ this.isStuck=false; }
-		}*/
+		}
+
 		
 		public String getName() {
 			return name;
